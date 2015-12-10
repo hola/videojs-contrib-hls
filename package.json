@@ -47,7 +47,7 @@
     "video.js": "^5.0.0-rc.96"
   },
   "dependencies": {
-    "pkcs7": "^0.2.2",
+    "pkcs7": "0.2.3",
     "videojs-contrib-media-sources": "2.0.0",
     "videojs-swf": "5.0.0-rc1"
   }

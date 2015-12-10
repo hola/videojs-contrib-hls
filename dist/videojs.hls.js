@@ -1,4 +1,4 @@
-/*! videojs-contrib-hls - v1.0.0 - 2015-12-07
+/*! videojs-contrib-hls - v1.0.0 - 2015-12-10
 * Copyright (c) 2015 Brightcove; Licensed  */
 /*! videojs-contrib-media-sources - v2.0.0 - 2015-09-29
 * Copyright (c) 2015 Brightcove; Licensed  */
@@ -5736,7 +5736,14 @@ resolveUrl = videojs.Hls.resolveUrl = function(basePath, path) {
   videojs.Hls.PlaylistLoader = PlaylistLoader;
 })(window, window.videojs);
 
-!function(e){if("object"==typeof exports&&"undefined"!=typeof module)module.exports=e();else if("function"==typeof define&&define.amd)define([],e);else{var f;"undefined"!=typeof window?f=window:"undefined"!=typeof global?f=global:"undefined"!=typeof self&&(f=self),(f.pkcs7||(f.pkcs7={})).unpad=e()}}(function(){var define,module,exports;return (function e(t,n,r){function s(o,u){if(!n[o]){if(!t[o]){var a=typeof require=="function"&&require;if(!u&&a)return a(o,!0);if(i)return i(o,!0);throw new Error("Cannot find module '"+o+"'")}var f=n[o]={exports:{}};t[o][0].call(f.exports,function(e){var n=t[o][1][e];return s(n?n:e)},f,f.exports,e,t,n,r)}return n[o].exports}var i=typeof require=="function"&&require;for(var o=0;o<r.length;o++)s(r[o]);return s})({1:[function(_dereq_,module,exports){
+(function e(t,n,r){function s(o,u){if(!n[o]){if(!t[o]){var a=typeof require=="function"&&require;if(!u&&a)return a(o,!0);if(i)return i(o,!0);throw new Error("Cannot find module '"+o+"'")}var f=n[o]={exports:{}};t[o][0].call(f.exports,function(e){var n=t[o][1][e];return s(n?n:e)},f,f.exports,e,t,n,r)}return n[o].exports}var i=typeof require=="function"&&require;for(var o=0;o<r.length;o++)s(r[o]);return s})({1:[function(require,module,exports){
+(function (global){
+global.window.pkcs7 = {
+  unpad: require('./unpad')
+};
+
+}).call(this,typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {})
+},{"./unpad":2}],2:[function(require,module,exports){
 /*
  * pkcs7.unpad
  * https://github.com/brightcove/pkcs7
@@ -5757,9 +5764,7 @@ module.exports = function unpad(padded) {
   return padded.subarray(0, padded.byteLength - padded[padded.byteLength - 1]);
 };
 
-},{}]},{},[1])
-(1)
-});
+},{}]},{},[1]);
 (function(window, videojs, unpad) {
 'use strict';
 
