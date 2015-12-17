@@ -744,8 +744,13 @@ videojs.Hls.prototype.checkBuffer_ = function() {
     this.checkBufferTimeout_ = null;
   }
 
-  this.fillBuffer();
-  this.drainBuffer();
+  try {
+      this.fillBuffer();
+      this.drainBuffer();
+  } catch (e) {
+      var player = window.videojs(this.player().options_.playerId);
+      player.error({message: e, code: 4});
+  }
 
   // wait awhile and try again
   this.checkBufferTimeout_ = window.setTimeout((this.checkBuffer_).bind(this),
@@ -900,19 +905,29 @@ videojs.Hls.prototype.setBandwidth = function(xhr) {
   this.tech_.trigger('bandwidthupdate');
 };
 
+videojs.Hls.prototype.segmentFinished = function() {
+    this.mediaIndex++;
+    // figure out what stream the next segment should be downloaded from
+    // with the updated bandwidth information
+    this.playlists.media(this.selectPlaylist());
+};
+
 videojs.Hls.prototype.loadSegment = function(segmentUri, seekToTime) {
   var self = this;
 
   // request the next segment
   this.segmentXhr_ = videojs.Hls.xhr({
     uri: segmentUri,
+    streaming: true,
     responseType: 'arraybuffer',
     withCredentials: this.source_.withCredentials
   }, function(error, request) {
     var segmentInfo;
 
-    // the segment request is no longer outstanding
-    self.segmentXhr_ = null;
+    if (request.type !== 'progress') {
+      // the segment request is no longer outstanding
+      self.segmentXhr_ = null;
+    }
 
     // if a segment request times out, we may have better luck with another playlist
     if (request.timedout) {
@@ -935,10 +950,17 @@ videojs.Hls.prototype.loadSegment = function(segmentUri, seekToTime) {
 
     // stop processing if the request was aborted
     if (!request.response) {
+      if (request.type === 'final') {
+        self.setBandwidth(request);
+        self.segmentFinished();
+        self.segmentXhr_ = null;
+      }
       return;
     }
 
-    self.setBandwidth(request);
+    if (request.type !== 'progress') {
+      self.setBandwidth(request);
+    }
 
     // package up all the work to append the segment
     segmentInfo = {
@@ -967,11 +989,9 @@ videojs.Hls.prototype.loadSegment = function(segmentUri, seekToTime) {
     self.tech_.trigger('progress');
     self.drainBuffer();
 
-    self.mediaIndex++;
-
-    // figure out what stream the next segment should be downloaded from
-    // with the updated bandwidth information
-    self.playlists.media(self.selectPlaylist());
+    if (request.type !== 'progress') {
+      self.segmentFinished();
+    }
   });
 };
 
