@@ -1,6 +1,6 @@
 {
   "name": "videojs-contrib-hls",
-  "version": "1.0.0-3",
+  "version": "1.0.0-5",
   "engines": {
     "node": ">= 0.10.12"
   },
@@ -48,7 +48,7 @@
   },
   "dependencies": {
     "pkcs7": "0.2.3",
-    "videojs-contrib-media-sources": "2.4.2",
+    "videojs-contrib-media-sources": "hola/videojs-contrib-media-sources#hola_5.0.2-1",
     "videojs-swf": "5.0.0-rc1"
   }
 }
