@@ -1,4 +1,4 @@
-/*! videojs-contrib-hls - v1.0.0-9 - 2016-01-31
+/*! videojs-contrib-hls - v1.0.0-9 - 2016-02-02
 * Copyright (c) 2016 Brightcove; Licensed  */
 /*! videojs-contrib-media-sources - v2.0.1 - 2016-01-31
 * Copyright (c) 2016 Brightcove; Licensed  */
@@ -3081,6 +3081,8 @@ videojs.Hls.prototype.src = function(src) {
   }
   this.playlists = new videojs.Hls.PlaylistLoader(this.source_.src, this.options_.withCredentials);
 
+  this.tech_.one('canplay', this.setupFirstPlay.bind(this));
+
   this.playlists.on('loadedmetadata', function() {
     var selectedPlaylist, loaderHandler, oldBitrate, newBitrate, segmentDuration,
         segmentDlTime, threshold;
@@ -3385,7 +3387,11 @@ videojs.Hls.prototype.setupFirstPlay = function() {
       this.sourceBuffer &&
 
       // 4) the active media playlist is available
-      media) {
+      media &&
+
+      // 5) the video element or flash player is in a readyState of
+      // at least HAVE_FUTURE_DATA
+      this.tech_.readyState() >= 1) {
 
     // seek to the latest media position for live videos
     seekable = this.seekable();
@@ -3953,7 +3959,6 @@ videojs.Hls.prototype.drainBuffer = function(event) {
   segment = playlist.segments[mediaIndex];
 
   if (segment.key && !bytes) {
-
     // this is an encrypted segment
     // if the key download failed, we want to skip this segment
     // but if the key hasn't downloaded yet, we want to try again later
