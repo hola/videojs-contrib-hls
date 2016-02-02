@@ -1,4 +1,4 @@
-/*! videojs-contrib-hls - v1.0.0-9 - 2016-02-02
+/*! videojs-contrib-hls - v1.0.0-10 - 2016-02-02
 * Copyright (c) 2016 Brightcove; Licensed  */
 /*! videojs-contrib-media-sources - v2.0.1 - 2016-01-31
 * Copyright (c) 2016 Brightcove; Licensed  */
