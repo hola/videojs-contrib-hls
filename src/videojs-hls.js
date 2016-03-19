@@ -770,7 +770,8 @@ videojs.Hls.prototype.checkBuffer_ = function() {
 videojs.Hls.prototype.startCheckingBuffer_ = function() {
   // if the player ever stalls, check if there is video data available
   // to append immediately
-  this.tech_.on('waiting', (this.drainBuffer).bind(this));
+  this.drainBuffer_ = this.drainBuffer.bind(this);
+  this.tech_.on('waiting', this.drainBuffer_);
 
   this.checkBuffer_();
 };
@@ -784,7 +785,7 @@ videojs.Hls.prototype.stopCheckingBuffer_ = function() {
     window.clearTimeout(this.checkBufferTimeout_);
     this.checkBufferTimeout_ = null;
   }
-  this.tech_.off('waiting', this.drainBuffer);
+  this.tech_.off('waiting', this.drainBuffer_);
 };
 
 /**
