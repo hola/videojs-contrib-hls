@@ -160,7 +160,17 @@ videojs.Hls.prototype.src = function(src) {
   }
   this.playlists = new videojs.Hls.PlaylistLoader(this.source_.src, this.options_.withCredentials);
 
+  this.tech_.trigger('manifestloading', this.source_.src);
+
   this.tech_.one('canplay', this.setupFirstPlay.bind(this));
+
+  var self = this;
+  ['manifestparsed', 'levelloading', 'levelloaded'].forEach(function(e){
+      self.playlists.on(e, function() {
+          self.tech_.trigger.apply(self.tech_,
+              [e].concat(Array.prototype.slice.call(arguments)));
+      });
+  });
 
   this.playlists.on('loadedmetadata', function() {
     var selectedPlaylist, loaderHandler, oldBitrate, newBitrate, segmentDuration,

@@ -240,9 +240,10 @@
 
         loader.state = 'SWITCHING_MEDIA';
 
+        var uri = resolveUrl(loader.master.uri, playlist.uri);
         // there is already an outstanding playlist request
         if (request) {
-          if (resolveUrl(loader.master.uri, playlist.uri) === request.url) {
+          if (uri === request.url) {
             // requesting to switch to the same playlist multiple times
             // has no effect after the first
             return;
@@ -253,11 +254,13 @@
         }
 
         // request the new playlist
+        loader.trigger('levelloading', uri);
         request = xhr({
-          uri: resolveUrl(loader.master.uri, playlist.uri),
+          uri: uri,
           withCredentials: withCredentials
         }, function(error, request) {
           haveMetadata(error, request, playlist.uri);
+          loader.trigger('levelloaded', uri);
           loader.trigger('mediachange');
         });
       };
@@ -274,11 +277,14 @@
         }
 
         loader.state = 'HAVE_CURRENT_METADATA';
+        var uri = resolveUrl(loader.master.uri, loader.media().uri);
+        loader.trigger('levelloading', uri);
         request = xhr({
-          uri: resolveUrl(loader.master.uri, loader.media().uri),
+          uri: uri,
           withCredentials: withCredentials
         }, function(error, request) {
           haveMetadata(error, request, loader.media().uri);
+          loader.trigger('levelloaded', uri);
         });
       });
 
@@ -320,8 +326,11 @@
             loader.master.playlists[loader.master.playlists[i].uri] = loader.master.playlists[i];
           }
 
+          loader.trigger('manifestparsed', loader.master.playlists);
+          var uri = resolveUrl(srcUrl, parser.manifest.playlists[0].uri);
+          loader.trigger('levelloading', uri);
           request = xhr({
-            uri: resolveUrl(srcUrl, parser.manifest.playlists[0].uri),
+            uri: uri,
             withCredentials: withCredentials
           }, function(error, request) {
             // pass along the URL specified in the master playlist
@@ -330,6 +339,7 @@
                          parser.manifest.playlists[0].uri);
             if (!error) {
               loader.trigger('loadedmetadata');
+              loader.trigger('levelloaded', uri);
             }
           });
           return loader.trigger('loadedplaylist');
@@ -344,8 +354,11 @@
           }]
         };
         loader.master.playlists[srcUrl] = loader.master.playlists[0];
+        loader.trigger('manifestparsed', loader.master.playlists);
+        loader.trigger('levelloading', srcUrl);
         haveMetadata(null, req, srcUrl);
-        return loader.trigger('loadedmetadata');
+        loader.trigger('loadedmetadata');
+        return loader.trigger('levelloaded', uri);
       });
     };
   PlaylistLoader.prototype = new videojs.Hls.Stream();
