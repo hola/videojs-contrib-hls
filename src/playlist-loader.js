@@ -339,6 +339,7 @@
                          parser.manifest.playlists[0].uri);
             if (!error) {
               loader.trigger('loadedmetadata');
+              loader.trigger('manifestloaded', loader.master.playlists);
               loader.trigger('levelloaded', uri);
             }
           });
@@ -358,6 +359,7 @@
         loader.trigger('levelloading', srcUrl);
         haveMetadata(null, req, srcUrl);
         loader.trigger('loadedmetadata');
+        loader.trigger('manifestloaded', loader.master.playlists);
         return loader.trigger('levelloaded', srcUrl);
       });
     };
