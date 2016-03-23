@@ -358,7 +358,7 @@
         loader.trigger('levelloading', srcUrl);
         haveMetadata(null, req, srcUrl);
         loader.trigger('loadedmetadata');
-        return loader.trigger('levelloaded', uri);
+        return loader.trigger('levelloaded', srcUrl);
       });
     };
   PlaylistLoader.prototype = new videojs.Hls.Stream();
