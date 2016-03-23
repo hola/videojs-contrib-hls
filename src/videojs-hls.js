@@ -165,7 +165,8 @@ videojs.Hls.prototype.src = function(src) {
   this.tech_.one('canplay', this.setupFirstPlay.bind(this));
 
   var self = this;
-  ['manifestparsed', 'levelloading', 'levelloaded'].forEach(function(e){
+  ['manifestparsed', 'manifestloaded', 'levelloading', 'levelloaded']
+  .forEach(function(e){
       self.playlists.on(e, function() {
           self.tech_.trigger.apply(self.tech_,
               [e].concat(Array.prototype.slice.call(arguments)));
