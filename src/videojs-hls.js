@@ -30,6 +30,7 @@ videojs.Hls = videojs.extend(Component, {
 
     Component.call(this, tech);
 
+    this.xhr = videojs.Hls.xhr;
     // tech.player() is deprecated but setup a reference to HLS for
     // backwards-compatibility
     if (tech.options_ && tech.options_.playerId) {
@@ -1205,7 +1206,7 @@ videojs.Hls.prototype.fetchKeys_ = function() {
 
     // request the key if the retry limit hasn't been reached
     if (!key.bytes && !keyFailed(key)) {
-      keyXhr = videojs.Hls.xhr({
+      keyXhr = this.xhr({
         uri: this.playlistUriToUrl(key.uri),
         responseType: 'arraybuffer',
         withCredentials: settings.withCredentials
