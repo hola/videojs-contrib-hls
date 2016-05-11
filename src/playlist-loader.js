@@ -371,18 +371,47 @@
    * @param update {object} the updated media playlist object
    */
   PlaylistLoader.prototype.updateMediaPlaylist_ = function(update) {
-    var expiredCount;
-
-    if (this.media_) {
-      expiredCount = update.mediaSequence - this.media_.mediaSequence;
-
-      // update the expired time count
-      this.expired_ += Playlist.duration(this.media_,
-                                         this.media_.mediaSequence,
-                                         update.mediaSequence);
-    }
-
+    var outdated = this.media_;
     this.media_ = this.master.playlists[update.uri];
+    if (!outdated) {
+        return;
+    }
+    // if the update was the result of a rendition switch do not
+    // attempt to calculate expired_ since media-sequences need not
+    // correlate between renditions/variants
+    if (update.uri !== outdated.uri) {
+        return;
+    }
+    // try using precise timing from first segment of the updated
+    // playlist
+    if (update.segments.length) {
+        if (typeof update.segments[0].start !== 'undefined') {
+            return void (this.expired_ = update.segments[0].start);
+        }
+        if (typeof update.segments[0].end !== 'undefined') {
+            return void (this.expired_ = update.segments[0].end - update.segments[0].duration);
+        }
+    }
+    // calculate expired by walking the outdated playlist
+    var i = update.mediaSequence - outdated.mediaSequence - 1;
+    for (; i >= 0; i--) {
+        var segment = outdated.segments[i];
+        if (!segment) {
+            // we missed information on this segment completely between
+            // playlist updates so we'll have to take an educated guess
+            // once we begin buffering again, any error we introduce can
+            // be corrected
+            this.expired_ += outdated.targetDuration || 10;
+            continue;
+        }
+        if (typeof segment.end !== 'undefined') {
+            return void (this.expired_ = segment.end);
+        }
+        if (typeof segment.start !== 'undefined') {
+            return void (this.expired_ = segment.start + segment.duration);
+        }
+        this.expired_ += segment.duration;
+    }
   };
 
   /**
