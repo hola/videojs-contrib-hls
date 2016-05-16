@@ -1,6 +1,6 @@
 {
   "name": "videojs-contrib-hls",
-  "version": "2.2.0",
+  "version": "2.2.0-1",
   "description": "Play back HLS with video.js, even where it's not natively supported",
   "main": "es5/videojs-contrib-hls.js",
   "engines": {
@@ -86,7 +86,7 @@
   "dependencies": {
     "pkcs7": "^0.2.2",
     "video.js": "^5.10.1",
-    "videojs-contrib-media-sources": "^3.1.0",
+    "videojs-contrib-media-sources": "hola/videojs-contrib-media-sources#hola_5.10.2",
     "videojs-swf": "^5.0.2"
   },
   "devDependencies": {
