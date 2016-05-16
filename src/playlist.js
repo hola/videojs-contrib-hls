@@ -1,297 +1,362 @@
 /**
+ * @file playlist.js
+ *
  * Playlist related utilities.
  */
-(function(window, videojs) {
-  'use strict';
+import {createTimeRange} from 'video.js';
 
-  var DEFAULT_TARGET_DURATION = 10;
-  var accumulateDuration, ascendingNumeric, duration, intervalDuration, optionalMin, optionalMax, rangeDuration, seekable;
-
-  // Math.min that will return the alternative input if one of its
-  // parameters in undefined
-  optionalMin = function(left, right) {
-    left = isFinite(left) ? left : Infinity;
-    right = isFinite(right) ? right : Infinity;
-    return Math.min(left, right);
-  };
-
-  // Math.max that will return the alternative input if one of its
-  // parameters in undefined
-  optionalMax = function(left, right) {
-    left = isFinite(left) ? left: -Infinity;
-    right = isFinite(right) ? right: -Infinity;
-    return Math.max(left, right);
-  };
-
-  // Array.sort comparator to sort numbers in ascending order
-  ascendingNumeric = function(left, right) {
-    return left - right;
-  };
-
+let Playlist = {
   /**
-   * Returns the media duration for the segments between a start and
-   * exclusive end index. The start and end parameters are interpreted
-   * as indices into the currently available segments. This method
-   * does not calculate durations for segments that have expired.
-   * @param playlist {object} a media playlist object
-   * @param start {number} an inclusive lower boundary for the
-   * segments to examine.
-   * @param end {number} an exclusive upper boundary for the segments
-   * to examine.
-   * @param includeTrailingTime {boolean} if false, the interval between
-   * the final segment and the subsequent segment will not be included
-   * in the result
-   * @return {number} the duration between the start index and end
-   * index in seconds.
+   * The number of segments that are unsafe to start playback at in
+   * a live stream. Changing this value can cause playback stalls.
+   * See HTTP Live Streaming, "Playing the Media Playlist File"
+   * https://tools.ietf.org/html/draft-pantos-http-live-streaming-18#section-6.3.3
    */
-  accumulateDuration = function(playlist, start, end, includeTrailingTime) {
-    var
-      ranges = [],
-      rangeEnds = (playlist.discontinuityStarts || []).concat(end),
-      result = 0,
-      i;
+  UNSAFE_LIVE_SEGMENTS: 3
+};
 
-    // short circuit if start and end don't specify a non-empty range
-    // of segments
-    if (start >= end) {
-      return 0;
+/**
+ * walk backward until we find a duration we can use
+ * or return a failure
+ *
+ * @param {Playlist} playlist the playlist to walk through
+ * @param {Number} endSequence the mediaSequence to stop walking on
+ */
+
+const backwardDuration = function(playlist, endSequence) {
+  let result = 0;
+  let i = endSequence - playlist.mediaSequence;
+  // if a start time is available for segment immediately following
+  // the interval, use it
+  let segment = playlist.segments[i];
+
+  // Walk backward until we find the latest segment with timeline
+  // information that is earlier than endSequence
+  if (segment) {
+    if (typeof segment.start !== 'undefined') {
+      return { result: segment.start, precise: true };
+    }
+    if (typeof segment.end !== 'undefined') {
+      return {
+        result: segment.end - segment.duration,
+        precise: true
+      };
+    }
+  }
+  while (i--) {
+    segment = playlist.segments[i];
+    if (typeof segment.end !== 'undefined') {
+      return { result: result + segment.end, precise: true };
     }
 
-    // create a range object for each discontinuity sequence
-    rangeEnds.sort(ascendingNumeric);
-    for (i = 0; i < rangeEnds.length; i++) {
-      if (rangeEnds[i] > start) {
-        ranges.push({ start: start, end: rangeEnds[i] });
-        i++;
-        break;
-      }
+    result += segment.duration;
+
+    if (typeof segment.start !== 'undefined') {
+      return { result: result + segment.start, precise: true };
     }
-    for (; i < rangeEnds.length; i++) {
-      // ignore times ranges later than end
-      if (rangeEnds[i] >= end) {
-        ranges.push({ start: rangeEnds[i - 1], end: end });
-        break;
-      }
-      ranges.push({ start: ranges[ranges.length - 1].end, end: rangeEnds[i] });
-    }
+  }
+  return { result, precise: false };
+};
 
-    // add up the durations for each of the ranges
-    for (i = 0; i < ranges.length; i++) {
-      result += rangeDuration(playlist,
-                              ranges[i],
-                              i === ranges.length - 1 && includeTrailingTime);
-    }
+/**
+ * walk forward until we find a duration we can use
+ * or return a failure
+ *
+ * @param {Playlist} playlist the playlist to walk through
+ * @param {Number} endSequence the mediaSequence to stop walking on
+ */
+const forwardDuration = function(playlist, endSequence) {
+  let result = 0;
+  let segment;
+  let i = endSequence - playlist.mediaSequence;
+  // Walk forward until we find the earliest segment with timeline
+  // information
 
-    return result;
-  };
-
-  /**
-   * Returns the duration of the specified range of segments. The
-   * range *must not* cross a discontinuity.
-   * @param playlist {object} a media playlist object
-   * @param range {object} an object that specifies a starting and
-   * ending index into the available segments.
-   * @param includeTrailingTime {boolean} if false, the interval between
-   * the final segment and the subsequent segment will not be included
-   * in the result
-   * @return {number} the duration of the range in seconds.
-   */
-  rangeDuration = function(playlist, range, includeTrailingTime) {
-    var
-      result = 0,
-      targetDuration = playlist.targetDuration || DEFAULT_TARGET_DURATION,
-      segment,
-      left, right;
-
-    // accumulate while searching for the earliest segment with
-    // available PTS information
-    for (left = range.start; left < range.end; left++) {
-      segment = playlist.segments[left];
-      if (segment.minVideoPts !== undefined ||
-          segment.minAudioPts !== undefined) {
-        break;
-      }
-      result += segment.duration || targetDuration;
+  for (; i < playlist.segments.length; i++) {
+    segment = playlist.segments[i];
+    if (typeof segment.start !== 'undefined') {
+      return {
+        result: segment.start - result,
+        precise: true
+      };
     }
 
-    // see if there's enough information to include the trailing time
-    if (includeTrailingTime) {
-      segment = playlist.segments[range.end];
-      if (segment &&
-          (segment.minVideoPts !== undefined ||
-           segment.minAudioPts !== undefined)) {
-        result += 0.001 *
-          (optionalMin(segment.minVideoPts, segment.minAudioPts) -
-           optionalMin(playlist.segments[left].minVideoPts,
-                    playlist.segments[left].minAudioPts));
-        return result;
-      }
+    result += segment.duration;
+
+    if (typeof segment.end !== 'undefined') {
+      return {
+        result: segment.end - result,
+        precise: true
+      };
     }
 
-    // do the same thing while finding the latest segment
-    for (right = range.end - 1; right >= left; right--) {
-      segment = playlist.segments[right];
-      if (segment.maxVideoPts !== undefined ||
-          segment.maxAudioPts !== undefined) {
-        break;
-      }
-      result += segment.duration || targetDuration;
+  }
+  // indicate we didn't find a useful duration estimate
+  return { result: -1, precise: false };
+};
+
+/**
+  * Calculate the media duration from the segments associated with a
+  * playlist. The duration of a subinterval of the available segments
+  * may be calculated by specifying an end index.
+  *
+  * @param {Object} playlist a media playlist object
+  * @param {Number=} endSequence an exclusive upper boundary
+  * for the playlist.  Defaults to playlist length.
+  * @param {Number} expired the amount of time that has dropped
+  * off the front of the playlist in a live scenario
+  * @return {Number} the duration between the first available segment
+  * and end index.
+  */
+const intervalDuration = function(playlist, endSequence, expired) {
+  let backward;
+  let forward;
+
+  if (typeof endSequence === 'undefined') {
+    endSequence = playlist.mediaSequence + playlist.segments.length;
+  }
+
+  if (endSequence < playlist.mediaSequence) {
+    return 0;
+  }
+
+  // do a backward walk to estimate the duration
+  backward = backwardDuration(playlist, endSequence);
+  if (backward.precise) {
+    // if we were able to base our duration estimate on timing
+    // information provided directly from the Media Source, return
+    // it
+    return backward.result;
+  }
+
+  // walk forward to see if a precise duration estimate can be made
+  // that way
+  forward = forwardDuration(playlist, endSequence);
+  if (forward.precise) {
+    // we found a segment that has been buffered and so it's
+    // position is known precisely
+    return forward.result;
+  }
+
+  // return the less-precise, playlist-based duration estimate
+  return backward.result + expired;
+};
+
+/**
+  * Calculates the duration of a playlist. If a start and end index
+  * are specified, the duration will be for the subset of the media
+  * timeline between those two indices. The total duration for live
+  * playlists is always Infinity.
+  *
+  * @param {Object} playlist a media playlist object
+  * @param {Number=} endSequence an exclusive upper
+  * boundary for the playlist. Defaults to the playlist media
+  * sequence number plus its length.
+  * @param {Number=} expired the amount of time that has
+  * dropped off the front of the playlist in a live scenario
+  * @return {Number} the duration between the start index and end
+  * index.
+  */
+export const duration = function(playlist, endSequence, expired) {
+  if (!playlist) {
+    return 0;
+  }
+
+  if (typeof expired !== 'number') {
+    expired = 0;
+  }
+
+  // if a slice of the total duration is not requested, use
+  // playlist-level duration indicators when they're present
+  if (typeof endSequence === 'undefined') {
+    // if present, use the duration specified in the playlist
+    if (playlist.totalDuration) {
+      return playlist.totalDuration;
     }
 
-    // add in the PTS interval in seconds between them
-    if (right >= left) {
-      result += 0.001 *
-        (optionalMax(playlist.segments[right].maxVideoPts,
-                  playlist.segments[right].maxAudioPts) -
-         optionalMin(playlist.segments[left].minVideoPts,
-                  playlist.segments[left].minAudioPts));
-    }
-
-    return result;
-  };
-
-  /**
-   * Calculate the media duration from the segments associated with a
-   * playlist. The duration of a subinterval of the available segments
-   * may be calculated by specifying a start and end index.
-   *
-   * @param playlist {object} a media playlist object
-   * @param startSequence {number} (optional) an inclusive lower
-   * boundary for the playlist.  Defaults to 0.
-   * @param endSequence {number} (optional) an exclusive upper boundary
-   * for the playlist.  Defaults to playlist length.
-   * @param includeTrailingTime {boolean} if false, the interval between
-   * the final segment and the subsequent segment will not be included
-   * in the result
-   * @return {number} the duration between the start index and end
-   * index.
-   */
-  intervalDuration = function(playlist, startSequence, endSequence, includeTrailingTime) {
-    var result = 0, targetDuration, expiredSegmentCount;
-
-    if (startSequence === undefined) {
-      startSequence = playlist.mediaSequence || 0;
-    }
-    if (endSequence === undefined) {
-      endSequence = startSequence + (playlist.segments || []).length;
-    }
-    targetDuration = playlist.targetDuration || DEFAULT_TARGET_DURATION;
-
-    // estimate expired segment duration using the target duration
-    expiredSegmentCount = optionalMax(playlist.mediaSequence - startSequence, 0);
-    result += expiredSegmentCount * targetDuration;
-
-    // accumulate the segment durations into the result
-    result += accumulateDuration(playlist,
-                                 startSequence + expiredSegmentCount - playlist.mediaSequence,
-                                 endSequence - playlist.mediaSequence,
-                                 includeTrailingTime);
-
-    return result;
-  };
-
-  /**
-   * Calculates the duration of a playlist. If a start and end index
-   * are specified, the duration will be for the subset of the media
-   * timeline between those two indices. The total duration for live
-   * playlists is always Infinity.
-   * @param playlist {object} a media playlist object
-   * @param startSequence {number} (optional) an inclusive lower
-   * boundary for the playlist.  Defaults to 0.
-   * @param endSequence {number} (optional) an exclusive upper boundary
-   * for the playlist.  Defaults to playlist length.
-   * @param includeTrailingTime {boolean} (optional) if false, the interval between
-   * the final segment and the subsequent segment will not be included
-   * in the result
-   * @return {number} the duration between the start index and end
-   * index.
-   */
-  duration = function(playlist, startSequence, endSequence, includeTrailingTime) {
-    if (!playlist) {
-      return 0;
-    }
-
-    if (includeTrailingTime === undefined) {
-      includeTrailingTime = true;
-    }
-
-    // if a slice of the total duration is not requested, use
-    // playlist-level duration indicators when they're present
-    if (startSequence === undefined && endSequence === undefined) {
-      // if present, use the duration specified in the playlist
-      if (playlist.totalDuration) {
-        return playlist.totalDuration;
-      }
-
-      // duration should be Infinity for live playlists
-      if (!playlist.endList) {
-        return window.Infinity;
-      }
-    }
-
-    // calculate the total duration based on the segment durations
-    return intervalDuration(playlist,
-                            startSequence,
-                            endSequence,
-                            includeTrailingTime);
-  };
-
-  /**
-   * Calculates the interval of time that is currently seekable in a
-   * playlist. The returned time ranges are relative to the earliest
-   * moment in the specified playlist that is still available. A full
-   * seekable implementation for live streams would need to offset
-   * these values by the duration of content that has expired from the
-   * stream.
-   * @param playlist {object} a media playlist object
-   * @return {TimeRanges} the periods of time that are valid targets
-   * for seeking
-   */
-  seekable = function(playlist) {
-    var start, end, liveBuffer, targetDuration, segment, pending, i;
-
-    // without segments, there are no seekable ranges
-    if (!playlist.segments) {
-      return videojs.createTimeRange();
-    }
-    // when the playlist is complete, the entire duration is seekable
-    if (playlist.endList) {
-      return videojs.createTimeRange(0, duration(playlist));
-    }
-
-    start = 0;
-    end = intervalDuration(playlist,
-                           playlist.mediaSequence,
-                           playlist.mediaSequence + playlist.segments.length);
-    targetDuration = playlist.targetDuration || DEFAULT_TARGET_DURATION;
-
-    // live playlists should not expose three segment durations worth
-    // of content from the end of the playlist
-    // https://tools.ietf.org/html/draft-pantos-http-live-streaming-16#section-6.3.3
+    // duration should be Infinity for live playlists
     if (!playlist.endList) {
-      liveBuffer = targetDuration * videojs.Hls.LIVE_SYNC_DURATION_COUNT;
-      // walk backward from the last available segment and track how
-      // much media time has elapsed until three target durations have
-      // been traversed. if a segment is part of the interval being
-      // reported, subtract the overlapping portion of its duration
-      // from the result.
-      for (i = playlist.segments.length - 1; i >= 0 && liveBuffer > 0; i--) {
-        segment = playlist.segments[i];
-        pending = optionalMin(duration(playlist,
-                                       playlist.mediaSequence + i,
-                                       playlist.mediaSequence + i + 1),
-                           liveBuffer);
-        liveBuffer -= pending;
-        end -= pending;
+      return window.Infinity;
+    }
+  }
+
+  // calculate the total duration based on the segment durations
+  return intervalDuration(playlist,
+                          endSequence,
+                          expired);
+};
+
+/**
+  * Calculates the interval of time that is currently seekable in a
+  * playlist. The returned time ranges are relative to the earliest
+  * moment in the specified playlist that is still available. A full
+  * seekable implementation for live streams would need to offset
+  * these values by the duration of content that has expired from the
+  * stream.
+  *
+  * @param {Object} playlist a media playlist object
+  * @param {Number=} expired the amount of time that has
+  * dropped off the front of the playlist in a live scenario
+  * @return {TimeRanges} the periods of time that are valid targets
+  * for seeking
+  */
+export const seekable = function(playlist, expired) {
+  let start;
+  let end;
+  let endSequence;
+
+  if (typeof expired !== 'number') {
+    expired = 0;
+  }
+
+  // without segments, there are no seekable ranges
+  if (!playlist || !playlist.segments) {
+    return createTimeRange();
+  }
+  // when the playlist is complete, the entire duration is seekable
+  if (playlist.endList) {
+    return createTimeRange(0, duration(playlist));
+  }
+
+  // live playlists should not expose three segment durations worth
+  // of content from the end of the playlist
+  // https://tools.ietf.org/html/draft-pantos-http-live-streaming-16#section-6.3.3
+  start = intervalDuration(playlist, playlist.mediaSequence, expired);
+  endSequence = Math.max(0, playlist.segments.length - Playlist.UNSAFE_LIVE_SEGMENTS);
+  end = intervalDuration(playlist,
+                         playlist.mediaSequence + endSequence,
+                         expired);
+  return createTimeRange(start, end);
+};
+
+/**
+ * Determine the index of the segment that contains a specified
+ * playback position in a media playlist.
+ *
+ * @param {Object} playlist the media playlist to query
+ * @param {Number} time The number of seconds since the earliest
+ * possible position to determine the containing segment for
+ * @param {Number=} expired the duration of content, in
+ * seconds, that has been removed from this playlist because it
+ * expired
+ * @return {Number} The number of the media segment that contains
+ * that time position.
+ */
+export const getMediaIndexForTime_ = function(playlist, time, expired) {
+  let i;
+  let segment;
+  let originalTime = time;
+  let numSegments = playlist.segments.length;
+  let lastSegment = numSegments - 1;
+  let startIndex;
+  let endIndex;
+  let knownStart;
+  let knownEnd;
+
+  if (!playlist) {
+    return 0;
+  }
+
+  // when the requested position is earlier than the current set of
+  // segments, return the earliest segment index
+  if (time < 0) {
+    return 0;
+  }
+
+  expired = expired || 0;
+
+  // find segments with known timing information that bound the
+  // target time
+  for (i = 0; i < numSegments; i++) {
+    segment = playlist.segments[i];
+    if (segment.end) {
+      if (segment.end > time) {
+        knownEnd = segment.end;
+        endIndex = i;
+        break;
+      } else {
+        knownStart = segment.end;
+        startIndex = i + 1;
+      }
+    }
+  }
+
+  // time was equal to or past the end of the last segment in the playlist
+  if (startIndex === numSegments) {
+    return numSegments;
+  }
+
+  // use the bounds we just found and playlist information to
+  // estimate the segment that contains the time we are looking for
+  if (typeof startIndex !== 'undefined') {
+    // We have a known-start point that is before our desired time so
+    // walk from that point forwards
+    time = time - knownStart;
+    for (i = startIndex; i < (endIndex || numSegments); i++) {
+      segment = playlist.segments[i];
+      time -= segment.duration;
+
+      if (time < 0) {
+        return i;
       }
     }
 
-    return videojs.createTimeRange(start, end);
-  };
+    if (i >= endIndex) {
+      // We haven't found a segment but we did hit a known end point
+      // so fallback to interpolating between the segment index
+      // based on the known span of the timeline we are dealing with
+      // and the number of segments inside that span
+      return startIndex + Math.floor(
+        ((originalTime - knownStart) / (knownEnd - knownStart)) *
+        (endIndex - startIndex));
+    }
 
-  // exports
-  videojs.Hls.Playlist = {
-    duration: duration,
-    seekable: seekable
-  };
-})(window, window.videojs);
+    // We _still_ haven't found a segment so load the last one
+    return lastSegment;
+  } else if (typeof endIndex !== 'undefined') {
+    // We _only_ have a known-end point that is after our desired time so
+    // walk from that point backwards
+    time = knownEnd - time;
+    for (i = endIndex; i >= 0; i--) {
+      segment = playlist.segments[i];
+      time -= segment.duration;
+
+      if (time < 0) {
+        return i;
+      }
+    }
+
+    // We haven't found a segment so load the first one if time is zero
+    if (time === 0) {
+      return 0;
+    }
+    return -1;
+  }
+  // We known nothing so walk from the front of the playlist,
+  // subtracting durations until we find a segment that contains
+  // time and return it
+  time = time - expired;
+
+  if (time < 0) {
+    return -1;
+  }
+
+  for (i = 0; i < numSegments; i++) {
+    segment = playlist.segments[i];
+    time -= segment.duration;
+    if (time < 0) {
+      return i;
+    }
+  }
+  // We are out of possible candidates so load the last one...
+  // The last one is the least likely to overlap a buffer and therefore
+  // the one most likely to tell us something about the timeline
+  return lastSegment;
+};
+
+Playlist.duration = duration;
+Playlist.seekable = seekable;
+Playlist.getMediaIndexForTime_ = getMediaIndexForTime_;
+
+// exports
+export default Playlist;

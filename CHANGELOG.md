@@ -1,8 +1,19 @@
 CHANGELOG
 =========
 
-## HEAD (Unreleased)
-_(none)_
+--------------------
+
+## 2.0.1 (2016-03-11)
+* First release of the ES6 version of the SourceHandler
+* All new lint/build/test setup via the [generator-videojs-plugin](https://github.com/videojs/generator-videojs-plugin) project
+
+--------------------
+
+## 1.13.1 (2016-03-04)
+* Converted from a Tech to a SourceHandler for Video.js 5.x compatibility
+* Implemented a Media Source Extensions-based playback engine with a Flash-based fallback
+* Rewrote the Transmuxer and moved it into it's own project [mux.js](https://github.com/videojs/mux.js)
+* Added support for 608/708 captions
 
 --------------------
 

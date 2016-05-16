@@ -1,11 +1,43 @@
-# video.js HLS Tech
+# video.js HLS Source Handler
 
-A video.js tech that plays HLS video on platforms that don't support it but have Flash.
+Play back HLS with video.js, even where it's not natively supported.
 
 [![Build Status](https://travis-ci.org/videojs/videojs-contrib-hls.svg?branch=master)](https://travis-ci.org/videojs/videojs-contrib-hls)
 
+<!-- START doctoc generated TOC please keep comment here to allow auto update -->
+<!-- DON'T EDIT THIS SECTION, INSTEAD RE-RUN doctoc TO UPDATE -->
+**Table of Contents**  *generated with [DocToc](https://github.com/thlorenz/doctoc)*
+
+- [Getting Started](#getting-started)
+- [Known Issues](#known-issues)
+  - [IE11](#ie11)
+- [Documentation](#documentation)
+  - [Options](#options)
+    - [withCredentials](#withcredentials)
+  - [Runtime Properties](#runtime-properties)
+    - [hls.playlists.master](#hlsplaylistsmaster)
+    - [hls.playlists.media](#hlsplaylistsmedia)
+    - [hls.segmentXhrTime](#hlssegmentxhrtime)
+    - [hls.bandwidth](#hlsbandwidth)
+    - [hls.bytesReceived](#hlsbytesreceived)
+    - [hls.selectPlaylist](#hlsselectplaylist)
+    - [hls.xhr](#hlsxhr)
+  - [Events](#events)
+    - [loadedmetadata](#loadedmetadata)
+    - [loadedplaylist](#loadedplaylist)
+    - [mediachange](#mediachange)
+  - [In-Band Metadata](#in-band-metadata)
+- [Hosting Considerations](#hosting-considerations)
+  - [Testing](#testing)
+- [Release History](#release-history)
+
+<!-- END doctoc generated TOC please keep comment here to allow auto update -->
+
+
 ## Getting Started
-Download [videojs-contrib-media-sources](https://github.com/videojs/videojs-contrib-media-sources/releases) and [videojs-contrib-hls](https://github.com/videojs/videojs-contrib-hls/releases). Include them both in your web page along with video.js:
+Download
+[videojs-contrib-hls](https://github.com/videojs/videojs-contrib-hls/releases)
+and include it in your page along with video.js:
 
 ```html
 <video id=example-video width=600 height=300 class="video-js vjs-default-skin" controls>
@@ -14,8 +46,7 @@ Download [videojs-contrib-media-sources](https://github.com/videojs/videojs-cont
      type="application/x-mpegURL">
 </video>
 <script src="video.js"></script>
-<script src="videojs-media-sources.js"></script>
-<script src="videojs-hls.min.js"></script>
+<script src="videojs-contrib-hls.min.js"></script>
 <script>
 var player = videojs('example-video');
 player.play();
@@ -23,6 +54,16 @@ player.play();
 ```
 
 Check out our [live example](http://videojs.github.io/videojs-contrib-hls/) if you're having trouble.
+
+## Known Issues
+Issues that are currenty know about with workarounds. If you want to
+help find a solution that would be appreciated!
+
+### IE11
+In some IE11 setups there are issues working with it's native HTML
+SourceBuffers functionality. This leads to various issues, such as
+videos stopping playback with media decode errors. The known workaround
+for this issues is to force the player to use flash when running on IE11.
 
 ## Documentation
 [HTTP Live Streaming](https://developer.apple.com/streaming/) (HLS) has
@@ -41,37 +82,61 @@ position of having to maintain alternate renditions of the same video
 and potentially having to forego HTML-based video entirely to provide
 the best desktop viewing experience.
 
-This tech attempts to address that situation by providing a polyfill
-for HLS on browsers that have Flash support. You can deploy a single
-HLS stream, code against the regular HTML5 video APIs, and create a
-fast, high-quality video experience across all the big web device
-categories.
+This project addresses that situation by providing a polyfill for HLS
+on browsers that have support for [Media Source
+Extensions](http://caniuse.com/#feat=mediasource), or failing that,
+support Flash. You can deploy a single HLS stream, code against the
+regular HTML5 video APIs, and create a fast, high-quality video
+experience across all the big web device categories.
 
 Check out the [full documentation](docs/) for details on how HLS works
 and advanced configuration. A description of the [adaptive switching
 behavior](docs/bitrate-switching.md) is available, too.
 
-The videojs-hls tech is still working towards a 1.0 release so it
-may not fit your requirements today. Specifically, there is _no_
-support for:
+videojs-contrib-hls support a bunch of HLS v2 and v3 features. Here
+are some highlights:
 
-- Alternate audio and video tracks
-- Subtitles
-- Segment codecs _other than_ H.264 with AAC audio
-- Internet Explorer < 10
+- video-on-demand and live playback modes
+- backup or redundant streams
+- mid-segment quality switching
+- AES-128 segment encryption
+- CEA-608 captions are automatically translated into standard HTML5
+  [caption text tracks][0]
+- Timed ID3 Metadata is automatically translated into HTML5 metedata
+  text tracks
+- Highly customizable adaptive bitrate selection
+- Automatic bandwidth tracking
+- Cross-domain credentials support with CORS
+- Tight integration with video.js and a philosophy of exposing as much
+  as possible with standard HTML APIs
+- Stream with multiple audio tracks and switching to those audio tracks
+  (see the docs folder) for info
+
+[0]: https://developer.mozilla.org/en-US/docs/Web/HTML/Element/track
 
 ### Options
 
-You may pass in an options object to the hls tech at player
-initialization. You can pass in options just like you would for any
-other tech:
+You may pass in an options object to the hls source handler at player
+initialization. You can pass in options just like you would for other
+parts of video.js:
 
 ```javascript
-videojs(video, {
+// html5 for html hls
+videojs(video, {html5: {
   hls: {
     withCredentials: true
   }
-});
+}});
+
+// or
+
+// flash for flash hls
+videojs(video, {flash: {
+  hls: {
+    withCredentials: true
+  }
+}});
+
 ```
 
 #### withCredentials
@@ -88,14 +153,28 @@ See html5rocks's [article](http://www.html5rocks.com/en/tutorials/cors/)
 for more info.
 
 ### Runtime Properties
-#### player.hls.playlists.master
+Runtime properties are attached to the tech object when HLS is in
+use. You can get a reference to the HLS source handler like this:
+
+```js
+var hls = player.tech({ IWillNotUseThisInPlugins: true }).hls;
+```
+
+If you *were* thinking about modifying runtime properties in a
+video.js plugin, we'd recommend you avoid it. Your plugin won't work
+with videos that don't use videojs-contrib-hls and the best plugins
+work across all the media types that video.js supports. If you're
+deploying videojs-contrib-hls on your own website and want to make a
+couple tweaks though, go for it!
+
+#### hls.playlists.master
 Type: `object`
 
 An object representing the parsed master playlist. If a media playlist
 is loaded directly, a master playlist with only one entry will be
 created.
 
-#### player.hls.playlists.media
+#### hls.playlists.media
 Type: `function`
 
 A function that can be used to retrieve or modify the currently active
@@ -108,19 +187,13 @@ will kick off an asynchronous load of the specified media
 playlist. Once it has been retreived, it will become the active media
 playlist.
 
-#### player.hls.mediaIndex
-Type: `number`
-
-The index of the next video segment to be downloaded from
-`player.hls.media`.
-
-#### player.hls.segmentXhrTime
+#### hls.segmentXhrTime
 Type: `number`
 
 The number of milliseconds it took to download the last media segment.
 This value is updated after each segment download completes.
 
-#### player.hls.bandwidth
+#### hls.bandwidth
 Type: `number`
 
 The number of bits downloaded per second in the last segment download.
@@ -134,12 +207,12 @@ have a more accurate source of bandwidth information, you can override
 this value as soon as the HLS tech has loaded to provide an initial
 bandwidth estimate.
 
-#### player.hls.bytesReceived
+#### hls.bytesReceived
 Type: `number`
 
 The total number of content bytes downloaded by the HLS tech.
 
-#### player.hls.selectPlaylist
+#### hls.selectPlaylist
 Type: `function`
 
 A function that returns the media playlist object to use to download
@@ -148,7 +221,50 @@ segment is downloaded. You can override this function to provide your
 adaptive streaming logic. You must, however, be sure to return a valid
 media playlist object that is present in `player.hls.master`.
 
+#### hls.xhr
+Type: `function`
+
+The xhr function that is used by HLS internally is exposed on the per-
+player `hls` object. While it is possible, we do not recommend replacing
+the function with your own implementation. Instead, the `xhr` provides
+the ability to specify a `beforeRequest` function that will be called
+with an object containing the options that will be used to create the
+xhr request.
+
+Example:
+```javascript
+player.hls.xhr.beforeRequest = function(options) {
+  options.uri = options.uri.replace('example.com', 'foo.com');
+
+  return options;
+};
+```
+
+The global `videojs.Hls` also exposes an `xhr` property. Specifying a
+`beforeRequest` function on that will allow you to intercept the options
+for *all* requests in every player on a page.
+
+Example
+```javascript
+videojs.Hls.xhr.beforeRequest = function(options) {
+  /*
+   * Modifications to requests that will affect every player.
+   */
+
+  return options;
+};
+```
+
+For information on the type of options that you can modify see the
+documentation at [https://github.com/Raynos/xhr](https://github.com/Raynos/xhr).
+
+
 ### Events
+Standard HTML video events are handled by video.js automatically and
+are triggered on the player object. In addition, there are a couple
+specialized events you can listen to on the HLS object during
+playback:
+
 #### loadedmetadata
 
 Fired after the first media playlist is downloaded for a stream.
@@ -181,34 +297,11 @@ text. Cues are created for all other frame types and the data is
 attached to the generated cue:
 
 ```js
-cue.frame.data
+cue.value.data
 ```
 
 There are lots of guides and references to using text tracks [around
 the web](http://www.html5rocks.com/en/tutorials/track/basics/).
-
-### Testing
-
-For testing, you can either run `npm test` or use `grunt` directly.
-If you use `npm test`, it will only run the karma and end-to-end tests using chrome.
-You can specify which browsers you want the tests to run via grunt's `test` task.
-You can use either grunt-style arguments or comma separated arguments:
-```
-grunt test:chrome:firefox	# grunt-style
-grunt test:chrome,firefox	# comma-separated
-```
-Possible options are:
-* `chromecanary`
-* `phantomjs`
-* `opera`
-* `chrome`<sup>1</sup>
-* `safari`<sup>1, 2</sup>
-* `firefox`<sup>1</sup>
-* `ie`<sup>1</sup>
-
-
-_<sup>1</sup>supported end-to-end browsers_<br />
-_<sup>2</sup>requires the [SafariDriver extension]( https://code.google.com/p/selenium/wiki/SafariDriver) to be installed_
 
 ## Hosting Considerations
 Unlike a native HLS implementation, the HLS tech has to comply with
@@ -219,6 +312,11 @@ headers](https://developer.mozilla.org/en-US/docs/HTTP/Access_control_CORS)
 configured. Easy [instructions are
 available](http://enable-cors.org/server.html) for popular webservers
 and most CDNs should have no trouble turning CORS on for your account.
+
+### Testing
+
+For testing, you run `npm run test`. This will run tests using any of the
+browsers that karma-detect-browsers detects on your machine.
 
 ## Release History
 Check out the [changelog](CHANGELOG.md) for a summary of each release.
