@@ -544,6 +544,12 @@ export default class SegmentLoader extends videojs.EventTarget {
       }, this.handleResponse_.bind(this));
     }
     this.pendingSegment_ = segmentInfo;
+    var loadSegment_hook = window.videojs.hola&&
+      window.videojs.hola.loadSegment_hook;
+    if (loadSegment_hook) {
+      if (loadSegment_hook.call(this, keyXhr, segmentInfo))
+        return;
+    }
     segmentXhr = this.hls_.xhr({
       uri: segmentInfo.uri,
       responseType: 'arraybuffer',

@@ -10,6 +10,11 @@ import {mergeOptions} from 'video.js';
 import Stream from './stream';
 import m3u8 from './m3u8';
 
+// XXX arik/alexeym: check if there is way to access resolveUrl exteranlly
+// without using this hack
+window.videojs.hola = window.videojs.hola||{};
+window.videojs.hola.resolveUrl = resolveUrl;
+
 /**
   * Returns a new array of segments that is the result of merging
   * properties from an older list of segments onto an updated
