@@ -162,7 +162,7 @@ const PlaylistLoader = function(srcUrl, hls, withCredentials) {
 
   // update the playlist loader's state in response to a new or
   // updated playlist.
-  haveMetadata = function(xhr, url) {
+  this.haveMetadata = haveMetadata = function(xhr, url) {
     let parser;
     let refreshDelay;
     let update;
@@ -466,6 +466,7 @@ const PlaylistLoader = function(srcUrl, hls, withCredentials) {
           // from the first listed one
           loader.media(parser.manifest.playlists[0]);
         }
+        loader.load_playlists();
         return;
       }
 
@@ -481,6 +482,22 @@ const PlaylistLoader = function(srcUrl, hls, withCredentials) {
       loader.master.playlists[0].resolvedUri = srcUrl;
       haveMetadata(req, srcUrl);
       return loader.trigger('loadedmetadata');
+    });
+  };
+
+  loader.load_playlists = function(){
+    loader.master.playlists.forEach(function(p){
+      if (request && request.url==p.resolvedUri)
+        return;
+      loader.hls_.xhr({
+        uri: p.resolvedUri,
+        withCredentials
+      }, function(error, req) {
+        if (error)
+          return console.error('error loading %s %o', p.resolvedUri, error);
+        haveMetadata(req, p.uri);
+        loader.trigger('loadedmetadata');
+      });
     });
   };
 };
