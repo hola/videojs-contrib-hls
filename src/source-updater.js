@@ -74,6 +74,18 @@ export default class SourceUpdater {
     }, done);
   }
 
+  pushBuffer(bytes, done) {
+    this.queueCallback_(() => {
+      this.sourceBuffer_.pushBuffer(bytes);
+    }, done);
+  }
+
+  flushBuffer(done) {
+    this.queueCallback_(() => {
+      this.sourceBuffer_.flushBuffer();
+    }, done);
+  }
+
   /**
    * Indicates what TimeRanges are buffered in the managed SourceBuffer.
    *
