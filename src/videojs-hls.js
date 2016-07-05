@@ -349,7 +349,8 @@ videojs.Hls.prototype.setupSourceBuffer_ = function() {
     this.pendingSegment_ = null;
 
     if (this.duration() !== Infinity &&
-        this.mediaIndex === this.playlists.media().segments.length) {
+        this.mediaIndex === this.playlists.media().segments.length  &&
+        this.mediaSource.readyState === 'open') {
       this.mediaSource.endOfStream();
     }
 
@@ -620,7 +621,7 @@ videojs.Hls.prototype.resetSrc_ = function() {
   this.cancelSegmentXhr();
   this.cancelKeyXhr();
 
-  if (this.sourceBuffer) {
+  if (this.sourceBuffer && this.mediaSource.readyState === 'open') {
     this.sourceBuffer.abort();
   }
 };
@@ -653,6 +654,10 @@ videojs.Hls.prototype.dispose = function() {
   }
 
   this.resetSrc_();
+  // prevent sourceBuffer from getting late done message
+  if (this.sourceBuffer && this.sourceBuffer.transmuxer_) {
+    this.sourceBuffer.transmuxer_.onmessage = null;
+  }
   Component.prototype.dispose.call(this);
 };
 
