@@ -1,4 +1,4 @@
-/*! videojs-contrib-hls - v1.0.0-26 - 2016-07-05
+/*! videojs-contrib-hls - v1.0.0-27 - 2016-09-06
 * Copyright (c) 2016 Brightcove; Licensed  */
 /*! videojs-contrib-media-sources - v2.0.1 - 2016-05-04
 * Copyright (c) 2016 Brightcove; Licensed  */
@@ -4430,6 +4430,8 @@ resolveUrl = videojs.Hls.resolveUrl = function(basePath, path) {
         if (!callbacks) {
           return;
         }
+        // Copy handlers so if handlers are added/removed during the process it doesn't throw everything off.
+        callbacks = callbacks.slice(0);
         // Slicing the arguments on every invocation of this method
         // can add a significant amount of overhead. Avoid the
         // intermediate object creation for the common case of a
