@@ -60,6 +60,9 @@ export default class Stream {
     if (!callbacks) {
       return;
     }
+    // Copy handlers so if handlers are added/removed during the process it
+    // doesn't throw everything off.
+    callbacks = callbacks.slice(0);
     // Slicing the arguments on every invocation of this method
     // can add a significant amount of overhead. Avoid the
     // intermediate object creation for the common case of a
