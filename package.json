@@ -86,7 +86,7 @@
   "dependencies": {
     "pkcs7": "^0.2.2",
     "video.js": "hola/video.js#v5.10.2-5",
-    "videojs-contrib-media-sources": "hola/videojs-contrib-media-sources#v3.1.0-4",
+    "videojs-contrib-media-sources": "hola/videojs-contrib-media-sources#v3.1.0-5",
     "videojs-swf": "hola/video-js-swf-sv#v5.0.2-3"
   },
   "devDependencies": {
