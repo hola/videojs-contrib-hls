@@ -463,6 +463,8 @@ videojs.Hls.prototype.addCuesForMetadata_ = function(segmentInfo) {
  * player and video are loaded and initialized.
  */
 videojs.Hls.prototype.setupFirstPlay = function() {
+  if (this.tech_.options_ && this.tech_.options_.disableSeekLatest)
+      return;
   var seekable, media;
   media = this.playlists.media();
 
