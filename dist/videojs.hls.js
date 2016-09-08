@@ -1,4 +1,4 @@
-/*! videojs-contrib-hls - v1.0.0-28 - 2016-09-06
+/*! videojs-contrib-hls - v1.0.0-29 - 2016-09-08
 * Copyright (c) 2016 Brightcove; Licensed  */
 /*! videojs-contrib-media-sources - v2.0.1 - 2016-09-06
 * Copyright (c) 2016 Brightcove; Licensed  */
@@ -3387,6 +3387,8 @@ videojs.Hls.prototype.addCuesForMetadata_ = function(segmentInfo) {
  * player and video are loaded and initialized.
  */
 videojs.Hls.prototype.setupFirstPlay = function() {
+  if (this.tech_.options_ && this.tech_.options_.disableSeekLatest)
+      return;
   var seekable, media;
   media = this.playlists.media();
 
