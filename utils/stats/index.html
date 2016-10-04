@@ -4,10 +4,10 @@
   <meta charset="utf-8">
   <title>video.js HLS Stats</title>
 
-  <link href="../../node_modules/video.js/dist/video-js.css" rel="stylesheet">
+  <link href="../../node_modules/@hola.org/video.js/dist/video-js.css" rel="stylesheet">
 
   <!-- video.js -->
-  <script src="../../node_modules/video.js/dist/video.js"></script>
+  <script src="../../node_modules/@hola.org/video.js/dist/video.js"></script>
 
   <!-- HLS plugin -->
   <script src="../../dist/videojs-contrib-hls.js"></script>
@@ -294,7 +294,7 @@
     }
 
     (function(window, videojs) {
-      videojs.options.flash.swf = '../../node_modules/videojs-swf/dist/video-js.swf';
+      videojs.options.flash.swf = '../../node_modules/@hola.org/videojs-swf/dist/video-js.swf';
       createPlayer(setup);
       // hook up the video switcher
       document.getElementById('load-url').addEventListener('submit', function(event) {

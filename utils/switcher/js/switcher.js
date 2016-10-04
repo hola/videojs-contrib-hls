@@ -24,7 +24,7 @@
       displayTimeline;
 
   // mock out the environment and dependencies
-  videojs.options.flash.swf = '../../node_modules/video.js/dist/video-js/video-js.swf';
+  videojs.options.flash.swf = '../../node_modules/@hola.org/video.js/dist/video-js/video-js.swf';
   videojs.Hls.SegmentParser = function() {
     this.getFlvHeader = function() {
       return new Uint8Array([]);

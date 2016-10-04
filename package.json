@@ -1,6 +1,6 @@
 {
-  "name": "videojs-contrib-hls",
-  "version": "2.2.0-12",
+  "name": "@hola.org/videojs-contrib-hls",
+  "version": "2.2.0-13",
   "description": "Play back HLS with video.js, even where it's not natively supported",
   "main": "es5/videojs-contrib-hls.js",
   "engines": {
@@ -57,7 +57,7 @@
   "browserify-shim": {
     "qunit": "global:QUnit",
     "sinon": "global:sinon",
-    "video.js": "global:videojs"
+    "@hola.org/video.js": "global:videojs"
   },
   "vjsstandard": {
     "ignore": [
@@ -85,12 +85,13 @@
   ],
   "dependencies": {
     "pkcs7": "^0.2.2",
-    "video.js": "hola/video.js#v5.10.2-5",
-    "videojs-contrib-media-sources": "hola/videojs-contrib-media-sources#v3.1.0-5",
-    "videojs-swf": "hola/video-js-swf-sv#v5.0.2-3"
+    "@hola.org/video.js": ">=5.10.2-16 <5.10.2",
+    "@hola.org/videojs-contrib-media-sources": ">=3.1.0-5 <3.1.0",
+    "@hola.org/videojs-swf": ">=5.1.0-3 <5.1.0"
   },
   "devDependencies": {
     "babel": "^5.8.0",
+    "babel5-plugin-module-alias": "^1.0.0",
     "babelify": "^6.0.0",
     "bannerize": "^1.0.0",
     "browserify": "^11.0.0",
@@ -121,5 +122,15 @@
     "uglify-js": "^2.5.0",
     "videojs-standard": "^4.0.0",
     "watchify": "^3.6.0"
+  },
+  "babel": {
+    "plugins": [
+      "babel5-plugin-module-alias"
+    ],
+    "extra": {
+      "module-alias": [
+        {"src": "npm:@hola.org/video.js", "expose": "video.js"}
+      ]
+    }
   }
 }
