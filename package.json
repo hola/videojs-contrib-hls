@@ -1,6 +1,6 @@
 {
   "name": "@hola.org/videojs-contrib-hls",
-  "version": "2.2.0-13",
+  "version": "2.2.0-14",
   "description": "Play back HLS with video.js, even where it's not natively supported",
   "main": "es5/videojs-contrib-hls.js",
   "engines": {
@@ -129,6 +129,7 @@
     ],
     "extra": {
       "module-alias": [
+        {"src": "npm:@hola.org/videojs-contrib-media-sources", "expose": "videojs-contrib-media-sources"},
         {"src": "npm:@hola.org/video.js", "expose": "video.js"}
       ]
     }
